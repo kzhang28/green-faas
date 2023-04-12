@@ -109,6 +109,9 @@ controller:
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
   loadbalancer:
     spi: "{{ controller_loadbalancer_spi | default('') }}"
+# Kuo added the entries for black and managed fraction
+    managed-fraction: "{{controller_loadbalancer_managed_fraction | default(1.0)}}"
+    blackbox-fraction: "{{ controller_loadbalancer_blackbox_fraction | default(1.0)}}"
   authentication:
     spi: "{{ controller_authentication_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
