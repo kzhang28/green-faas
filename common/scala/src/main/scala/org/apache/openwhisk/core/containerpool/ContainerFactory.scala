@@ -117,7 +117,8 @@ trait ContainerFactory {
     memory: ByteSize,
     cpuShares: Int,
     action: Option[ExecutableWhiskAction])(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
-    createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares)
+    //createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares)
+    createContainerCpuSet(tid, name, actionImage, userProvidedImage, memory, cpuShares, action)
   }
 
   def createContainer(tid: TransactionId,
@@ -126,6 +127,19 @@ trait ContainerFactory {
                       userProvidedImage: Boolean,
                       memory: ByteSize,
                       cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container]
+
+  /*
+  *  kuo: create a docker container which can specify the cpuset parameter
+  * */
+  def createContainerCpuSet(tid: TransactionId,
+                      name: String,
+                      actionImage: ExecManifest.ImageName,
+                      userProvidedImage: Boolean,
+                      memory: ByteSize,
+                      cpuShares: Int, action:
+                            Option[ExecutableWhiskAction])(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+    createContainer(tid, name, actionImage, userProvidedImage, memory, cpuShares)
+  }
 
   /** perform any initialization */
   def init(): Unit

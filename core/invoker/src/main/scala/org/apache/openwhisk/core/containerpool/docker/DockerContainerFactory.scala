@@ -26,7 +26,7 @@ import org.apache.openwhisk.common.Logging
 import org.apache.openwhisk.common.TransactionId
 import org.apache.openwhisk.core.WhiskConfig
 import org.apache.openwhisk.core.containerpool._
-import org.apache.openwhisk.core.entity.ByteSize
+import org.apache.openwhisk.core.entity.{ByteSize,ExecutableWhiskAction}
 import org.apache.openwhisk.core.entity.ExecManifest
 import org.apache.openwhisk.core.entity.InvokerInstanceId
 
@@ -80,6 +80,46 @@ class DockerContainerFactory(instance: InvokerInstanceId,
       name = Some(name),
       useRunc = dockerContainerFactoryConfig.useRunc,
       parameters ++ containerArgsConfig.extraArgs.map { case (k, v) => ("--" + k, v) })
+  }
+
+  override def createContainerCpuSet(tid: TransactionId,
+                               name: String,
+                               actionImage: ExecManifest.ImageName,
+                               userProvidedImage: Boolean,
+                               memory: ByteSize,
+                               cpuShares: Int,
+                                     action: Option[ExecutableWhiskAction] )(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+    val registryConfig =
+      ContainerFactory.resolveRegistryConfig(userProvidedImage, runtimesRegistryConfig, userImagesRegistryConfig)
+    val image = if (userProvidedImage) Left(actionImage) else Right(actionImage)
+
+    if (action.isEmpty) {
+      logging.error(this, s"NoActionInfo when creating container (PrewarmIsProhibited) for $name")
+    }else {
+      logging.info(this, s"ActionIsNotNone when creating container")
+    }
+    val cpusetConfig = if (action.get.name.asString == "img-resize") { // set cpu only when
+      logging.info(this, s"Have cpuset img-resize action when creating container")
+      Map("--cpuset-cpus" ->Set("0,1,8,9"))
+    }else {
+      logging.info(this, s"Have cpuset other action when creating container")
+      Map("--cpuset-cpus" ->Set("2,3,4,5,6,7,10,11,12,13,14,15"))
+    }
+    DockerContainer.create(
+      tid,
+      image = image,
+      registryConfig = Some(registryConfig),
+      memory = memory,
+      cpuShares = cpuShares,
+      environment = Map("__OW_API_HOST" -> config.wskApiHost) ++ containerArgsConfig.extraEnvVarMap,
+      network = containerArgsConfig.network,
+      dnsServers = containerArgsConfig.dnsServers,
+      dnsSearch = containerArgsConfig.dnsSearch,
+      dnsOptions = containerArgsConfig.dnsOptions,
+      name = Some(name),
+      useRunc = dockerContainerFactoryConfig.useRunc,
+      parameters ++ containerArgsConfig.extraArgs.map { case (k, v) => ("--" + k, v) } ++ cpusetConfig
+    )
   }
 
   /** Perform cleanup on init */
